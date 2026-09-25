@@ -1,12 +1,13 @@
 import * as THREE from 'three';
 
-const names = ['height','speed','intensity','tilt','direction','heightOut','speedOut','intensityOut','tiltOut','total','headHits','torsoHits','armHits','legHits','headDrops','torsoDrops','armDrops','legDrops','water','timeText','accumulated','chart','chartStart','chartEnd','scene','sceneCaption','rainVector','pause','reset','resetView'];
+const names = ['height','speed','intensity','depth','heightOut','speedOut','intensityOut','depthOut','directionOut','rainJoystick','joyThumb','toggleControls','closeControls','controlsBackdrop','controlsPanel','total','headHits','torsoHits','armHits','legHits','headDrops','torsoDrops','armDrops','legDrops','water','timeText','accumulated','chart','chartStart','chartEnd','scene','sceneCaption','rainVector','pause','reset','resetView'];
 const el = Object.fromEntries(names.map(id => [id, document.getElementById(id)]));
 const fmt = n => Math.round(n).toLocaleString('th-TH');
 const fmtRate = n => n.toLocaleString('th-TH',{maximumFractionDigits:2,minimumFractionDigits:2});
 const dropVolume = Math.PI/6*.002**3;
 const equivalentMmH = dropsPerSecond => dropsPerSecond*dropVolume*3600*1000/(.255*params.height*.78*params.height);
-const getParams = () => ({ height: +el.height.value / 100, speed: +el.speed.value / 3.6, rain: +el.intensity.value, tilt: +el.tilt.value * Math.PI / 180, az: +el.direction.value * Math.PI / 180 });
+const joystick = {x:0,y:22/65*2-1};
+const getParams = () => {const depth=+el.depth.value/100,lateral=-joystick.x,scale=Math.min(1,Math.hypot(lateral,depth));return {height:+el.height.value/100,speed:+el.speed.value/3.6,rain:+el.intensity.value,tilt:(joystick.y+1)/2*65*Math.PI/180,az:scale<.01?0:Math.atan2(lateral,-depth),directionScale:scale};};
 let params = getParams(), running = true, elapsed = 0, cumulative = 0, posePhase = 0, lastFrame = performance.now(), nextSample = 0, secondBucket = 0, bucketTime = 0, nextGraph = 1;
 let current = {head:0,torso:0,arms:0,legs:0,total:0}, series = [{t:0,r:0,rain:params.rain}];
 const scene = new THREE.Scene();
@@ -54,7 +55,7 @@ for(const side of [-1,1]){
 function pose(phase){let motion=Math.min(1,params.speed/3.3),run=Math.max(0,Math.min(1,(params.speed-2.5)/3));
   let swing=motion*(.36+.36*run),s=Math.sin(phase),other=-s;
   legPivots[0].rotation.z=s*swing;legPivots[1].rotation.z=-s*swing;
-  knees[0].rotation.z=Math.max(0,other)*(.08+.76*motion);knees[1].rotation.z=Math.max(0,s)*(.08+.76*motion);
+  knees[0].rotation.z=-Math.max(0,other)*(.08+.76*motion);knees[1].rotation.z=-Math.max(0,s)*(.08+.76*motion);
   armPivots[0].rotation.z=-s*(swing*.83);armPivots[1].rotation.z=s*(swing*.83);
   elbows[0].rotation.z=(.1+run*.9)*(1+.25*Math.max(0,s));elbows[1].rotation.z=(.1+run*.9)*(1+.25*Math.max(0,-s));
   body.rotation.z=-.08*run;figure.position.y=motion*.018*Math.abs(Math.sin(phase));figure.scale.setScalar(params.height/1.7);
@@ -65,7 +66,7 @@ const raycaster=new THREE.Raycaster();raycaster.far=8;
 const direction=new THREE.Vector3(),u=new THREE.Vector3(),v=new THREE.Vector3(),center=new THREE.Vector3(),origin=new THREE.Vector3();
 const box=new THREE.Box3(),corner=new THREE.Vector3(),relative=new THREE.Vector3();
 const hits=[],count={head:0,torso:0,arms:0,legs:0};
-function rainVelocity(){const fall=7,horiz=fall*Math.tan(params.tilt);return new THREE.Vector3(-horiz*Math.cos(params.az)-params.speed,-fall,horiz*Math.sin(params.az))}
+function rainVelocity(){const fall=7,horiz=fall*Math.tan(params.tilt)*params.directionScale;return new THREE.Vector3(-horiz*Math.cos(params.az)-params.speed,-fall,horiz*Math.sin(params.az))}
 function sampleRate(){
   if(params.rain===0)return {head:0,torso:0,arms:0,legs:0,total:0};
   const velocity=rainVelocity(),magnitude=velocity.length();direction.copy(velocity).normalize();
@@ -90,9 +91,31 @@ function sampleRate(){
   let factor=density*magnitude*width*height/(N*N);
   return {head:count.head*factor,torso:count.torso*factor,arms:count.arms*factor,legs:count.legs*factor,total:(count.head+count.torso+count.arms+count.legs)*factor};
 }
-function updateLabels(){el.heightOut.textContent=el.height.value+' ซม.';el.speedOut.textContent=el.speed.value+' กม./ชม.';el.intensityOut.textContent=el.intensity.value+' มม./ชม.';el.tiltOut.textContent=el.tilt.value+'°';el.rainVector.textContent='↘ ฝน'+el.direction.options[el.direction.selectedIndex].text;el.sceneCaption.textContent=params.speed?'เดิน / วิ่ง '+el.speed.value+' กม./ชม. · หมุนภาพได้':'ยืนนิ่ง · หมุนภาพได้'}
+function updateLabels(){
+  el.heightOut.textContent=el.height.value+' ซม.';el.speedOut.textContent=el.speed.value+' กม./ชม.';el.intensityOut.textContent=el.intensity.value+' มม./ชม.';
+  const tilt=Math.round(params.tilt*180/Math.PI),depth=+el.depth.value;
+  const side=joystick.x<-.18?'ซ้าย':joystick.x>.18?'ขวา':'';
+  const along=depth< -15?'หน้า':depth>15?'หลัง':'';
+  const from=[along,side].filter(Boolean).join('–');
+  el.depthOut.textContent=depth< -15?'จากหน้า':depth>15?'จากหลัง':'กึ่งกลาง';
+  el.directionOut.textContent=(from?'จาก'+from:'แนวดิ่ง')+' · '+tilt+'°';
+  el.rainVector.textContent='↘ ฝน'+(from?'จาก'+from:'แนวดิ่ง')+' · '+tilt+'°';
+  el.joyThumb.style.left=(50+joystick.x*36)+'%';el.joyThumb.style.top=(50+joystick.y*36)+'%';
+  el.rainJoystick.setAttribute('aria-valuenow',String(tilt));el.rainJoystick.setAttribute('aria-valuetext',(from?'จาก'+from:'แนวดิ่ง')+' เอียง '+tilt+' องศา');
+  el.sceneCaption.textContent=params.speed?'เดิน / วิ่ง '+el.speed.value+' กม./ชม. · หมุนภาพได้':'ยืนนิ่ง · หมุนภาพได้';
+}
 function updateInputs(){params=getParams();updateLabels();pose(posePhase);current=sampleRate();updateResult()}
-for(const id of ['height','speed','intensity','tilt','direction'])el[id].addEventListener(id==='direction'?'change':'input',updateInputs);
+for(const id of ['height','speed','intensity','depth'])el[id].addEventListener('input',updateInputs);
+function setJoystick(e){const rect=el.rainJoystick.getBoundingClientRect(),radius=rect.width*.36;let x=(e.clientX-rect.left-rect.width/2)/radius,y=(e.clientY-rect.top-rect.height/2)/radius;const length=Math.hypot(x,y);if(length>1){x/=length;y/=length}joystick.x=x;joystick.y=y;updateInputs()}
+let joyPointer=null;
+el.rainJoystick.addEventListener('pointerdown',e=>{joyPointer=e.pointerId;el.rainJoystick.setPointerCapture(e.pointerId);setJoystick(e)});
+el.rainJoystick.addEventListener('pointermove',e=>{if(joyPointer===e.pointerId)setJoystick(e)});
+for(const type of ['pointerup','pointercancel'])el.rainJoystick.addEventListener(type,e=>{if(joyPointer===e.pointerId)joyPointer=null});
+el.rainJoystick.addEventListener('keydown',e=>{const keys={ArrowLeft:[-.1,0],ArrowRight:[.1,0],ArrowUp:[0,-.1],ArrowDown:[0,.1]};if(!keys[e.key])return;e.preventDefault();joystick.x=Math.max(-1,Math.min(1,joystick.x+keys[e.key][0]));joystick.y=Math.max(-1,Math.min(1,joystick.y+keys[e.key][1]));updateInputs()});
+function setControlsOpen(open){el.controlsPanel.classList.toggle('open',open);document.body.classList.toggle('controls-open',open);el.toggleControls.setAttribute('aria-expanded',String(open));if(open)el.closeControls.focus();else el.toggleControls.focus()}
+el.toggleControls.onclick=()=>setControlsOpen(!el.controlsPanel.classList.contains('open'));
+el.closeControls.onclick=()=>setControlsOpen(false);el.controlsBackdrop.onclick=()=>setControlsOpen(false);
+document.addEventListener('keydown',e=>{if(e.key==='Escape'&&el.controlsPanel.classList.contains('open'))setControlsOpen(false)});
 function timeString(t){let m=Math.floor(t/60),s=Math.floor(t%60);return `${String(m).padStart(2,'0')}:${String(s).padStart(2,'0')}`}
 function updateResult(){el.total.textContent=fmtRate(equivalentMmH(current.total));for(const [key,id,small] of [['head','headHits','headDrops'],['torso','torsoHits','torsoDrops'],['arms','armHits','armDrops'],['legs','legHits','legDrops']]){el[id].textContent=fmtRate(equivalentMmH(current[key]));el[small].textContent='≈ '+fmt(current[key])+' หยด/วินาที'}el.water.textContent='มม./ชม. · ≈ '+fmt(current.total)+' หยด/วินาที';el.timeText.textContent=timeString(elapsed);el.accumulated.textContent='สะสมประมาณ '+fmt(cumulative)+' หยด'}
 function resetRun(){elapsed=0;cumulative=0;posePhase=0;nextSample=0;secondBucket=0;bucketTime=0;nextGraph=1;series=[{t:0,r:0,rain:params.rain}];pose(0);current=sampleRate();updateResult();drawChart()}
@@ -105,9 +128,13 @@ for(const event of ['pointerup','pointercancel'])el.scene.addEventListener(event
 const dropCount=window.matchMedia('(max-width: 850px)').matches?100:155,positions=new Float32Array(dropCount*6),drops=[];
 const dropGeometry=new THREE.BufferGeometry();dropGeometry.setAttribute('position',new THREE.BufferAttribute(positions,3));
 const rainLines=new THREE.LineSegments(dropGeometry,new THREE.LineBasicMaterial({color:0x9deaff,transparent:true,opacity:.64}));scene.add(rainLines);
-const splashGeometry=new THREE.BufferGeometry();const splashPositions=new Float32Array(96*3);splashGeometry.setAttribute('position',new THREE.BufferAttribute(splashPositions,3));
-const splashPoints=new THREE.Points(splashGeometry,new THREE.PointsMaterial({color:0xcaf8ff,size:.085,transparent:true,opacity:.92,depthWrite:false}));scene.add(splashPoints);
+const maxSplashes=256,splashGeometry=new THREE.BufferGeometry(),splashPositions=new Float32Array(maxSplashes*3);splashGeometry.setAttribute('position',new THREE.BufferAttribute(splashPositions,3));splashGeometry.setDrawRange(0,0);
+const splashPoints=new THREE.Points(splashGeometry,new THREE.PointsMaterial({color:0xcaf8ff,size:.075,transparent:true,opacity:.95,depthWrite:false}));scene.add(splashPoints);
 const splashes=[];
+function emitSplash(hit){const normal=hit.face.normal.clone().transformDirection(hit.object.matrixWorld),point=hit.point.clone().addScaledVector(normal,.025);
+  for(let j=0;j<7;j++){const speed=.4+Math.random()*.75;splashes.push({x:point.x,y:point.y,z:point.z,vx:normal.x*speed+(Math.random()-.5)*.95,vy:normal.y*speed+Math.random()*.75,vz:normal.z*speed+(Math.random()-.5)*.95,age:0,life:.26+Math.random()*.24})}
+  if(splashes.length>maxSplashes)splashes.splice(0,splashes.length-maxSplashes);
+}
 function spawn(){return {x:(Math.random()-.5)*3.8,y:1.9+Math.random()*2.5,z:(Math.random()-.5)*3.8}}
 for(let i=0;i<dropCount;i++){let d=spawn();d.y=Math.random()*4;drops.push(d)}
 const previous=new THREE.Vector3(),end=new THREE.Vector3(),segment=new THREE.Vector3();
@@ -116,14 +143,15 @@ function animateRain(dt){rainLines.visible=splashPoints.visible=params.rain>0;
   let vel=rainVelocity().multiplyScalar(.55),fraction=Math.min(1,params.rain/13);
   for(let i=0;i<dropCount;i++){
     let p=drops[i];if(running){previous.set(p.x,p.y,p.z);end.copy(previous).addScaledVector(vel,dt);segment.subVectors(end,previous);let len=segment.length();
-      if(len){raycaster.set(previous,segment.normalize());raycaster.far=len;hits.length=0;raycaster.intersectObjects(targets,false,hits);if(hits.length){let hit=hits[0].point;splashes.push({x:hit.x,y:hit.y,z:hit.z,age:0});p=spawn();drops[i]=p}else{p.x=end.x;p.y=end.y;p.z=end.z}}
+      if(len){raycaster.set(previous,segment.normalize());raycaster.far=len;hits.length=0;raycaster.intersectObjects(targets,false,hits);if(hits.length){emitSplash(hits[0]);p=spawn();drops[i]=p}else{p.x=end.x;p.y=end.y;p.z=end.z}}
       if(p.y<0||Math.abs(p.x)>2.8||Math.abs(p.z)>2.8){p=spawn();drops[i]=p}
     }
     let o=i*6,shown=(i/dropCount)<fraction;positions[o]=p.x;positions[o+1]=shown?p.y:-10;positions[o+2]=p.z;positions[o+3]=p.x-vel.x*.018;positions[o+4]=shown?p.y-vel.y*.018:-10;positions[o+5]=p.z-vel.z*.018;
   }
   dropGeometry.attributes.position.needsUpdate=true;
-  for(let i=0;i<splashes.length;i++){if(running)splashes[i].age+=dt;if(splashes[i].age>.3){splashes.splice(i--,1);continue}}
-  for(let i=0;i<96;i++){let s=splashes[i],o=i*3;splashPositions[o]=s?s.x:-20;splashPositions[o+1]=s?s.y:-20;splashPositions[o+2]=s?s.z:-20}
+  for(let i=0;i<splashes.length;i++){const s=splashes[i];if(running){s.age+=dt;s.x+=s.vx*dt;s.y+=s.vy*dt;s.z+=s.vz*dt;s.vy-=3*dt}if(s.age>s.life){splashes.splice(i--,1);continue}}
+  for(let i=0;i<splashes.length;i++){const s=splashes[i],o=i*3;splashPositions[o]=s.x;splashPositions[o+1]=s.y;splashPositions[o+2]=s.z}
+  splashGeometry.setDrawRange(0,splashes.length);
   splashGeometry.attributes.position.needsUpdate=true;
 }
 const chartCtx=el.chart.getContext('2d');
@@ -157,4 +185,21 @@ requestAnimationFrame(frame);
 if ('serviceWorker' in navigator && location.protocol === 'https:') {
   addEventListener('load', () => navigator.serviceWorker.register('./sw.js').catch(() => {}), { once: true });
 }
-if(document.modelContext?.registerTool){try{void Promise.resolve(document.modelContext.registerTool({name:'configure_rain_simulation',title:'ปรับแบบจำลองฝน',description:'Set height, movement speed, rainfall, rain tilt and direction for the ongoing simulation.',inputSchema:{type:'object',properties:{heightCm:{type:'number',minimum:130,maximum:205},speedKmh:{type:'number',minimum:0,maximum:20},rainMmH:{type:'number',minimum:0,maximum:40},tiltDeg:{type:'number',minimum:0,maximum:65},directionDeg:{type:'integer',enum:[0,45,90,135,180,225,270,315]}},additionalProperties:false},annotations:{readOnlyHint:false},execute(input){const map={heightCm:['height',130,205],speedKmh:['speed',0,20],rainMmH:['intensity',0,40],tiltDeg:['tilt',0,65],directionDeg:['direction',0,315]};if(!input||typeof input!=='object'||Array.isArray(input))throw Error('Invalid configuration');for(const [key,value] of Object.entries(input))if(!(key in map)||typeof value!=='number'||!Number.isFinite(value)||value<map[key][1]||value>map[key][2]||(key==='directionDeg'&&value%45!==0))throw Error('Invalid '+key);for(const [key,value] of Object.entries(input))el[map[key][0]].value=value;updateInputs();return {dropsPerSecond:Math.round(current.total),elapsedSeconds:Math.round(elapsed)}}})).catch(()=>{})}catch(_error){}}
+if(document.modelContext?.registerTool){
+  try{void Promise.resolve(document.modelContext.registerTool({
+    name:'configure_rain_simulation',title:'ปรับแบบจำลองฝน',
+    description:'Set height, speed, rainfall, tilt, and 3D rain direction for the ongoing simulation.',
+    inputSchema:{type:'object',properties:{heightCm:{type:'number',minimum:130,maximum:205},speedKmh:{type:'number',minimum:0,maximum:20},rainMmH:{type:'number',minimum:0,maximum:40},tiltDeg:{type:'number',minimum:0,maximum:65},directionDeg:{type:'integer',enum:[0,45,90,135,180,225,270,315]}},additionalProperties:false},
+    annotations:{readOnlyHint:false},
+    execute(input){
+      const bounds={heightCm:[130,205],speedKmh:[0,20],rainMmH:[0,40],tiltDeg:[0,65],directionDeg:[0,315]};
+      if(!input||typeof input!=='object'||Array.isArray(input))throw Error('Invalid configuration');
+      for(const [key,value] of Object.entries(input))if(!(key in bounds)||typeof value!=='number'||!Number.isFinite(value)||value<bounds[key][0]||value>bounds[key][1]||(key==='directionDeg'&&value%45!==0))throw Error('Invalid '+key);
+      for(const [key,id] of [['heightCm','height'],['speedKmh','speed'],['rainMmH','intensity']])if(input[key]!==undefined)el[id].value=input[key];
+      if(input.tiltDeg!==undefined)joystick.y=input.tiltDeg/65*2-1;
+      if(input.directionDeg!==undefined){const angle=input.directionDeg*Math.PI/180;joystick.x=-Math.sin(angle);el.depth.value=Math.round(-Math.cos(angle)*100)}
+      const length=Math.hypot(joystick.x,joystick.y);if(length>1){joystick.x/=length;joystick.y/=length}
+      updateInputs();return {dropsPerSecond:Math.round(current.total),elapsedSeconds:Math.round(elapsed)};
+    }
+  })).catch(()=>{})}catch(_error){}
+}
