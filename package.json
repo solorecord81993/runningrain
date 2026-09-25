@@ -1,0 +1,16 @@
+{
+  "name": "runningrain",
+  "version": "1.0.0",
+  "description": "3D rain exposure simulation",
+  "scripts": {
+    "build": "esbuild src/app.js --bundle --minify --format=esm --target=es2020 --outfile=app.js"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "type": "module",
+  "dependencies": {
+    "esbuild": "0.25.10",
+    "three": "0.186.1"
+  }
+}
