@@ -80,7 +80,7 @@ function sampleRate(){
   const margin=.025,minA=minU-margin,minB=minV-margin,width=maxU-minU+margin*2,height=maxV-minV+margin*2;
   count.head=count.torso=count.arms=count.legs=0;
   // Deterministic stratified rays reduce flicker and count only the first body surface hit.
-  const N=22;
+  const N=window.matchMedia('(max-width: 850px)').matches?18:22;
   for(let i=0;i<N;i++)for(let j=0;j<N;j++){
     origin.copy(center).addScaledVector(u,minA+(i+.5)*width/N).addScaledVector(v,minB+(j+.5)*height/N).addScaledVector(direction,-3);
     raycaster.set(origin,direction);hits.length=0;raycaster.intersectObjects(targets,false,hits);
@@ -102,7 +102,7 @@ let drag=null;el.scene.addEventListener('pointerdown',e=>{drag={x:e.clientX,y:e.
 el.scene.addEventListener('pointermove',e=>{if(!drag)return;orbit-=(e.clientX-drag.x)*.007;elev=Math.max(.1,Math.min(.78,elev+(e.clientY-drag.y)*.004));drag={x:e.clientX,y:e.clientY};moveCamera()});
 for(const event of ['pointerup','pointercancel'])el.scene.addEventListener(event,()=>drag=null);
 // Rain is a small visual sample. The per-second estimator above uses many more rays.
-const dropCount=155,positions=new Float32Array(dropCount*6),drops=[];
+const dropCount=window.matchMedia('(max-width: 850px)').matches?100:155,positions=new Float32Array(dropCount*6),drops=[];
 const dropGeometry=new THREE.BufferGeometry();dropGeometry.setAttribute('position',new THREE.BufferAttribute(positions,3));
 const rainLines=new THREE.LineSegments(dropGeometry,new THREE.LineBasicMaterial({color:0x9deaff,transparent:true,opacity:.64}));scene.add(rainLines);
 const splashGeometry=new THREE.BufferGeometry();const splashPositions=new Float32Array(96*3);splashGeometry.setAttribute('position',new THREE.BufferAttribute(splashPositions,3));
@@ -154,4 +154,7 @@ function frame(now){let dt=Math.min(.07,(now-lastFrame)/1000||0);lastFrame=now;
   animateRain(dt);renderer.render(scene,camera);requestAnimationFrame(frame)
 }
 requestAnimationFrame(frame);
+if ('serviceWorker' in navigator && location.protocol === 'https:') {
+  addEventListener('load', () => navigator.serviceWorker.register('./sw.js').catch(() => {}), { once: true });
+}
 if(document.modelContext?.registerTool){try{void Promise.resolve(document.modelContext.registerTool({name:'configure_rain_simulation',title:'ปรับแบบจำลองฝน',description:'Set height, movement speed, rainfall, rain tilt and direction for the ongoing simulation.',inputSchema:{type:'object',properties:{heightCm:{type:'number',minimum:130,maximum:205},speedKmh:{type:'number',minimum:0,maximum:20},rainMmH:{type:'number',minimum:0,maximum:40},tiltDeg:{type:'number',minimum:0,maximum:65},directionDeg:{type:'integer',enum:[0,45,90,135,180,225,270,315]}},additionalProperties:false},annotations:{readOnlyHint:false},execute(input){const map={heightCm:['height',130,205],speedKmh:['speed',0,20],rainMmH:['intensity',0,40],tiltDeg:['tilt',0,65],directionDeg:['direction',0,315]};if(!input||typeof input!=='object'||Array.isArray(input))throw Error('Invalid configuration');for(const [key,value] of Object.entries(input))if(!(key in map)||typeof value!=='number'||!Number.isFinite(value)||value<map[key][1]||value>map[key][2]||(key==='directionDeg'&&value%45!==0))throw Error('Invalid '+key);for(const [key,value] of Object.entries(input))el[map[key][0]].value=value;updateInputs();return {dropsPerSecond:Math.round(current.total),elapsedSeconds:Math.round(elapsed)}}})).catch(()=>{})}catch(_error){}}

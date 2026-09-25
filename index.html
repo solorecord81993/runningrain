@@ -4,9 +4,14 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <meta name="theme-color" content="#071827">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-title" content="Rain Lab">
   <meta name="description" content="ทดลองว่าความสูง ความเร็ว และทิศทางฝนมีผลต่อจำนวนหยดฝนที่ปะทะตัวอย่างไร">
   <title>Rain Motion Lab — เดินหรือวิ่ง ใครเปียกกว่ากัน?</title>
   <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='16' fill='%23071827'/%3E%3Cpath d='M32 8 15 36a17 17 0 0 0 34 0Z' fill='%235ccef4'/%3E%3Cpath d='M24 39a9 9 0 0 0 9 9' fill='none' stroke='%23d9f8ff' stroke-width='4' stroke-linecap='round'/%3E%3C/svg%3E">
+  <link rel="manifest" href="./manifest.webmanifest">
+  <link rel="apple-touch-icon" href="./icon-180.png">
   <style>
     :root{color-scheme:dark;--bg:#071827;--panel:#0e2536;--card:#123044;--line:#315365;--text:#eef9ff;--muted:#a5c2d2;--rain:#66d4ff;--accent:#f8b970;--green:#8de1cf;font-family:Inter,"Noto Sans Thai",system-ui,sans-serif}
     *{box-sizing:border-box}body{margin:0;background:radial-gradient(ellipse at 70% 0%,#174058 0%,var(--bg) 58%);color:var(--text)}button,input,select{font:inherit}button{cursor:pointer}button:focus-visible,input:focus-visible,select:focus-visible{outline:3px solid var(--accent);outline-offset:3px}
@@ -17,6 +22,10 @@
     @media(max-width:1180px){.results{grid-template-columns:repeat(3,minmax(0,1fr))}}@media(max-width:970px){.layout{grid-template-columns:285px minmax(0,1fr)}.results{grid-template-columns:repeat(2,minmax(0,1fr))}}@media(max-width:720px){.top{align-items:start}.top p{display:none}.layout{display:flex;flex-direction:column-reverse}.right,.controls{width:100%}.stage{height:min(62vh,520px);min-height:350px}.controls{display:grid;grid-template-columns:1fr 1fr;gap:0 18px}.controls h2,.controls .full{grid-column:1/-1}.controls h2{margin-bottom:4px}.group{border-top:1px solid #31536575!important;padding:13px 0}.method{padding:14px}.shell{padding:16px 14px 30px}}@media(max-width:520px){.controls{display:block}.results{grid-template-columns:repeat(2,minmax(0,1fr));gap:9px}.result{padding:14px}.result strong{font-size:1.45rem}.stage{min-height:340px}.stage-head{top:13px;left:13px}.stage-foot{left:10px;right:10px;bottom:10px}.pill{font-size:.72rem;padding:7px 9px}.actions button{font-size:.74rem;padding:8px 9px}}
     @media(prefers-reduced-motion:reduce){*{scroll-behavior:auto!important}}
     .chart-legend{display:flex;gap:16px;color:#c7e1ed;font-size:.79rem;margin-top:12px}.chart-legend span{display:flex;align-items:center;gap:7px}.chart-legend i{display:inline-block;width:20px;height:0;border-top:3px solid #69d9ff}.chart-legend .legend-rain{border-color:#f8b970;border-top-style:dashed}
+
+    .range{min-height:44px}.select,.actions button{min-height:44px}
+    @media(max-width:850px){.layout{display:flex;flex-direction:column;gap:14px}.right{display:contents}.stage{order:1;width:100%;height:clamp(350px,48vh,490px)}.controls{order:2;width:100%;display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:0 20px}.controls h2,.controls .full{grid-column:1/-1}.results{order:3;width:100%;grid-template-columns:repeat(3,minmax(0,1fr))}.chart-panel{order:4;width:100%}.method{order:5;width:100%}}
+    @media(max-width:520px){.controls{display:block}.stage{height:clamp(350px,53vh,460px)}.stage-foot{align-items:stretch;flex-direction:column;gap:7px}.pill{align-self:flex-start}.actions{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:6px}.actions button{min-height:44px;padding:8px 5px;font-size:.76rem}.results{grid-template-columns:repeat(2,minmax(0,1fr))}.result.primary{grid-column:1/-1}.chart-panel{padding:16px 14px 12px}.chart-header>div:first-child{min-width:0}.chart-header{gap:8px}.chart-meta{flex:none}.chart-axis span:nth-child(2){display:none}}
   </style>
 </head>
 <body>

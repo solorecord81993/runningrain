@@ -3,7 +3,7 @@
   "version": "1.0.0",
   "description": "3D rain exposure simulation",
   "scripts": {
-    "build": "esbuild src/app.js --bundle --minify --format=esm --target=es2020 --outfile=app.js"
+    "build": "node scripts/build.mjs"
   },
   "keywords": [],
   "author": "",
